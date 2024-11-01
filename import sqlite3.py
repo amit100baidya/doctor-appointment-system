@@ -47,67 +47,69 @@ conn.commit()
 # Main Application Class
 class DoctorAppointmentApp(tb.Window):
     def __init__(self):
-        super().__init__(themename="darkly")
+        super().__init__(themename="cosmo")
         self.title("Doctor Appointment System")
-        self.geometry("800x500")
+        self.geometry("1600x1000")
         self.user = None  # Currently logged in user
+        self.configure(background="#007BFF")  # Background color
         self.login_screen()
 
     def login_screen(self):
         self.clear_frame()
-        label = ttk.Label(self, text="Login", font=("Arial", 24))
+        label = ttk.Label(self, text="Login", font=("Verdana", 24, "bold"), foreground="#1a73e8")
         label.pack(pady=20)
 
         # Username and password fields
-        username_label = ttk.Label(self, text="Username:")
+        username_label = ttk.Label(self, text="Username:", font=("Verdana", 12), foreground="#001F3F")
         username_label.pack(pady=5)
-        self.username_entry = ttk.Entry(self)
+        self.username_entry = ttk.Entry(self, font=("Verdana", 10))
         self.username_entry.pack(pady=5)
 
-        password_label = ttk.Label(self, text="Password:")
+        password_label = ttk.Label(self, text="Password:", font=("Verdana", 12), foreground="#001F3F")
         password_label.pack(pady=5)
-        self.password_entry = ttk.Entry(self, show="*")
+        self.password_entry = ttk.Entry(self, show="*", font=("Verdana", 10))
         self.password_entry.pack(pady=5)
 
         # Login button
-        login_button = ttk.Button(self, text="Login", command=self.login)
+        login_button = tb.Button(self, text="Login", style="dark.TButton", bootstyle="rounded", command=self.login)
         login_button.pack(pady=20)
 
-        register_button = ttk.Button(self, text="Register", command=self.register_screen)
+        register_button = tb.Button(self, text="Register", style="warning.TButton", bootstyle="rounded", command=self.register_screen)
         register_button.pack(pady=10)
+
 
     def register_screen(self):
         self.clear_frame()
-        label = ttk.Label(self, text="Register", font=("Arial", 24))
+        label = ttk.Label(self, text="Register", font=("Verdana", 24, "bold"), foreground="#1a73e8")
         label.pack(pady=20)
 
         # Username and password fields
-        username_label = ttk.Label(self, text="Username:")
+        username_label = ttk.Label(self, text="Username:", font=("Arial", 12), foreground="#001F3F")
         username_label.pack(pady=5)
-        self.username_entry = ttk.Entry(self)
+        self.username_entry = ttk.Entry(self, font=("Arial", 10))
         self.username_entry.pack(pady=5)
 
-        password_label = ttk.Label(self, text="Password:")
+        password_label = ttk.Label(self, text="Password:", font=("Arial", 12), foreground="#001F3F")
         password_label.pack(pady=5)
-        self.password_entry = ttk.Entry(self, show="*")
+        self.password_entry = ttk.Entry(self, show="*", font=("Arial", 10))
         self.password_entry.pack(pady=5)
 
-        role_label = ttk.Label(self, text="Role:")
+        role_label = ttk.Label(self, text="Role:", font=("Arial", 12), foreground="#001F3F")
         role_label.pack(pady=5)
         self.role_var = tk.StringVar(value="patient")
         role_menu = ttk.OptionMenu(self, self.role_var, "patient", "doctor")
         role_menu.pack(pady=5)
 
-        speciality_label = ttk.Label(self, text="Speciality:")
+        speciality_label = ttk.Label(self, text="Speciality:", font=("Arial", 12), foreground="#001F3F")
         speciality_label.pack(pady=5)
-        self.speciality_entry = ttk.Entry(self)
+        self.speciality_entry = ttk.Entry(self, font=("Arial", 10))
         self.speciality_entry.pack(pady=5)
 
         # Register button
-        register_button = ttk.Button(self, text="Register", command=self.register)
+        register_button = tb.Button(self, text="Register", style="info.TButton", bootstyle="rounded", command=self.register)
         register_button.pack(pady=20)
 
-        back_button = ttk.Button(self, text="Back to Login", command=self.login_screen)
+        back_button = tb.Button(self, text="Back to Login", style="secondary.TButton", bootstyle="rounded", command=self.login_screen)
         back_button.pack(pady=10)
 
     def login(self):
@@ -143,25 +145,26 @@ class DoctorAppointmentApp(tb.Window):
 
     def home_screen(self):
         self.clear_frame()
-        label = ttk.Label(self, text="Home", font=("Arial", 24))
-        label.pack(pady=20)
+        notebook = ttk.Notebook(self)
+        
+        book_tab = ttk.Frame(notebook)
+        view_tab = ttk.Frame(notebook)
+        
+        notebook.add(book_tab, text="Book Appointment")
+        notebook.add(view_tab, text="View Appointments")
+        notebook.pack(expand=True, fill='both')
 
         if self.user[3] == 'patient':
-            book_button = ttk.Button(self, text="Book Appointment", command=self.book_appointment_screen)
-            book_button.pack(pady=10)
-
-            view_button = ttk.Button(self, text="View Appointments", command=self.view_appointments_screen)
-            view_button.pack(pady=10)
+            self.book_appointment_screen(parent=book_tab)
+            self.view_appointments_screen(parent=view_tab)
         elif self.user[3] == 'doctor':
-            view_button = ttk.Button(self, text="View Your Appointments", command=self.view_appointments_screen)
-            view_button.pack(pady=10)
+            self.view_appointments_screen(parent=view_tab)
 
-        logout_button = ttk.Button(self, text="Logout", command=self.logout)
+        logout_button = tb.Button(self, text="Logout", style="danger.TButton", bootstyle="rounded", command=self.logout)
         logout_button.pack(pady=20)
 
-    def book_appointment_screen(self):
-        self.clear_frame()
-        label = ttk.Label(self, text="Book an Appointment", font=("Arial", 20))
+    def book_appointment_screen(self, parent):
+        label = ttk.Label(parent, text="Book an Appointment", font=("Arial", 20), foreground="#1a73e8")
         label.pack(pady=20)
 
         cursor.execute("SELECT * FROM doctors")
@@ -172,27 +175,24 @@ class DoctorAppointmentApp(tb.Window):
             self.home_screen()
             return
 
-        doctor_label = ttk.Label(self, text="Select Doctor:")
+        doctor_label = ttk.Label(parent, text="Select Doctor:", font=("Arial", 12), foreground="#001F3F")
         doctor_label.pack(pady=5)
         self.doctor_var = tk.StringVar(value=f"{doctors[0][1]} - {doctors[0][2]}")
-        doctor_menu = ttk.OptionMenu(self, self.doctor_var, *[f"{doctor[1]} - {doctor[2]}" for doctor in doctors])
+        doctor_menu = ttk.OptionMenu(parent, self.doctor_var, *[f"{doctor[1]} - {doctor[2]}" for doctor in doctors])
         doctor_menu.pack(pady=5)
 
-        date_label = ttk.Label(self, text="Select Date (YYYY-MM-DD):")
+        date_label = ttk.Label(parent, text="Select Date (YYYY-MM-DD):", font=("Arial", 12), foreground="#001F3F")
         date_label.pack(pady=5)
-        self.date_entry = ttk.Entry(self)
+        self.date_entry = ttk.Entry(parent, font=("Arial", 10))
         self.date_entry.pack(pady=5)
 
-        time_label = ttk.Label(self, text="Select Time (HH:MM AM/PM):")
+        time_label = ttk.Label(parent, text="Select Time (HH:MM AM/PM):", font=("Arial", 12), foreground="#001F3F")
         time_label.pack(pady=5)
-        self.time_entry = ttk.Entry(self)
+        self.time_entry = ttk.Entry(parent, font=("Arial", 10))
         self.time_entry.pack(pady=5)
 
-        submit_button = ttk.Button(self, text="Confirm Appointment", command=self.confirm_appointment)
+        submit_button = tb.Button(parent, text="Confirm Appointment", style="success.TButton", bootstyle="rounded", command=self.confirm_appointment)
         submit_button.pack(pady=20)
-
-        back_button = ttk.Button(self, text="Back", command=self.home_screen)
-        back_button.pack(pady=10)
 
     def confirm_appointment(self):
         doctor_name_speciality = self.doctor_var.get()
@@ -210,41 +210,24 @@ class DoctorAppointmentApp(tb.Window):
         messagebox.showinfo("Appointment Confirmed", f"Appointment with {doctor_name} on {date} at {time} confirmed.")
         self.home_screen()
 
-    def view_appointments_screen(self):
-        self.clear_frame()
-        label = ttk.Label(self, text="Your Appointments", font=("Arial", 20))
+    def view_appointments_screen(self, parent):
+        label = ttk.Label(parent, text="Your Appointments", font=("Arial", 20), foreground="#1a73e8")
         label.pack(pady=20)
 
-        listbox = tk.Listbox(self, width=80, height=15)
+        listbox = tk.Listbox(parent, width=80, height=15)
         listbox.pack(pady=20)
 
         if self.user[3] == 'patient':
-            # Patients see their own appointments
-            cursor.execute(
-                "SELECT d.name, a.date, a.time FROM appointments a "
-                "JOIN doctors d ON a.doctor_id = d.id "
-                "WHERE a.patient_id=?",
-                (self.user[0],)
-            )
-        elif self.user[3] == 'doctor':
-            # Doctors see appointments booked with them
-            cursor.execute(
-                "SELECT u.username, a.date, a.time FROM appointments a "
-                "JOIN users u ON a.patient_id = u.id "
-                "WHERE a.doctor_id=?",
-                (self.user[0],)
-            )
+            cursor.execute("SELECT a.date, a.time, d.name FROM appointments a JOIN doctors d ON a.doctor_id = d.id WHERE a.patient_id = ?", (self.user[0],))
+        else:
+            cursor.execute("SELECT a.date, a.time, u.username FROM appointments a JOIN users u ON a.patient_id = u.id WHERE a.doctor_id = ?", (self.user[0],))
 
         appointments = cursor.fetchall()
-
         if not appointments:
             listbox.insert(tk.END, "No appointments found.")
         else:
             for appointment in appointments:
-                listbox.insert(tk.END, f"{appointment[0]} - {appointment[1]} at {appointment[2]}")
-
-        back_button = ttk.Button(self, text="Back", command=self.home_screen)
-        back_button.pack(pady=10)
+                listbox.insert(tk.END, f"{appointment[0]} at {appointment[1]} - {appointment[2]}")
 
     def logout(self):
         self.user = None
@@ -257,3 +240,7 @@ class DoctorAppointmentApp(tb.Window):
 if __name__ == "__main__":
     app = DoctorAppointmentApp()
     app.mainloop()
+
+# Close the database connection when done
+conn.close()
+
