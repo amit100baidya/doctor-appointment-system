@@ -3,6 +3,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import ttkbootstrap as tb
 import hashlib
+from datetime import datetime
 
 # Hash password
 def hash_password(password):
@@ -76,7 +77,6 @@ class DoctorAppointmentApp(tb.Window):
 
         register_button = tb.Button(self, text="Register", style="warning.TButton", bootstyle="rounded", command=self.register_screen)
         register_button.pack(pady=10)
-
 
     def register_screen(self):
         self.clear_frame()
@@ -200,6 +200,18 @@ class DoctorAppointmentApp(tb.Window):
         date = self.date_entry.get()
         time = self.time_entry.get()
 
+        try:
+            datetime.strptime(date, "%Y-%m-%d")  # Validate date format
+        except ValueError:
+            messagebox.showerror("Invalid Date", "Please enter the date in YYYY-MM-DD format.")
+            return
+
+        try:
+            datetime.strptime(time, "%I:%M %p")  # Validate time format
+        except ValueError:
+            messagebox.showerror("Invalid Time", "Please enter the time in HH:MM AM/PM format.")
+            return
+
         cursor.execute("SELECT id FROM doctors WHERE name=?", (doctor_name,))
         doctor_id = cursor.fetchone()[0]
 
@@ -214,20 +226,17 @@ class DoctorAppointmentApp(tb.Window):
         label = ttk.Label(parent, text="Your Appointments", font=("Arial", 20), foreground="#1a73e8")
         label.pack(pady=20)
 
-        listbox = tk.Listbox(parent, width=80, height=15)
-        listbox.pack(pady=20)
-
-        if self.user[3] == 'patient':
-            cursor.execute("SELECT a.date, a.time, d.name FROM appointments a JOIN doctors d ON a.doctor_id = d.id WHERE a.patient_id = ?", (self.user[0],))
-        else:
-            cursor.execute("SELECT a.date, a.time, u.username FROM appointments a JOIN users u ON a.patient_id = u.id WHERE a.doctor_id = ?", (self.user[0],))
-
+        cursor.execute("SELECT a.date, a.time, d.name FROM appointments a JOIN doctors d ON a.doctor_id = d.id WHERE a.patient_id=?", (self.user[0],))
         appointments = cursor.fetchall()
+
         if not appointments:
-            listbox.insert(tk.END, "No appointments found.")
-        else:
-            for appointment in appointments:
-                listbox.insert(tk.END, f"{appointment[0]} at {appointment[1]} - {appointment[2]}")
+            label = ttk.Label(parent, text="No Appointments Found", font=("Arial", 12), foreground="#001F3F")
+            label.pack(pady=5)
+            return
+
+        for appointment in appointments:
+            appointment_label = ttk.Label(parent, text=f"{appointment[0]} at {appointment[1]} with Dr. {appointment[2]}", font=("Arial", 12), foreground="#001F3F")
+            appointment_label.pack(pady=5)
 
     def logout(self):
         self.user = None
@@ -237,10 +246,8 @@ class DoctorAppointmentApp(tb.Window):
         for widget in self.winfo_children():
             widget.destroy()
 
+# Run the application
 if __name__ == "__main__":
     app = DoctorAppointmentApp()
     app.mainloop()
-
-# Close the database connection when done
-conn.close()
-
+    conn.close()
