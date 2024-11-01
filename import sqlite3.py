@@ -51,8 +51,8 @@ class DoctorAppointmentApp(tb.Window):
         super().__init__(themename="cosmo")
         self.title("Doctor Appointment System")
         self.geometry("1600x1000")
-        self.user = None  # Currently logged in user
-        self.configure(background="#007BFF")  # Background color
+        self.user = None
+        self.configure(background="#007BFF")
         self.login_screen()
 
     def login_screen(self):
@@ -60,7 +60,6 @@ class DoctorAppointmentApp(tb.Window):
         label = ttk.Label(self, text="Login", font=("Verdana", 24, "bold"), foreground="#1a73e8")
         label.pack(pady=20)
 
-        # Username and password fields
         username_label = ttk.Label(self, text="Username:", font=("Verdana", 12), foreground="#001F3F")
         username_label.pack(pady=5)
         self.username_entry = ttk.Entry(self, font=("Verdana", 10))
@@ -71,7 +70,6 @@ class DoctorAppointmentApp(tb.Window):
         self.password_entry = ttk.Entry(self, show="*", font=("Verdana", 10))
         self.password_entry.pack(pady=5)
 
-        # Login button
         login_button = tb.Button(self, text="Login", style="dark.TButton", bootstyle="rounded", command=self.login)
         login_button.pack(pady=20)
 
@@ -83,7 +81,6 @@ class DoctorAppointmentApp(tb.Window):
         label = ttk.Label(self, text="Register", font=("Verdana", 24, "bold"), foreground="#1a73e8")
         label.pack(pady=20)
 
-        # Username and password fields
         username_label = ttk.Label(self, text="Username:", font=("Arial", 12), foreground="#001F3F")
         username_label.pack(pady=5)
         self.username_entry = ttk.Entry(self, font=("Arial", 10))
@@ -105,7 +102,6 @@ class DoctorAppointmentApp(tb.Window):
         self.speciality_entry = ttk.Entry(self, font=("Arial", 10))
         self.speciality_entry.pack(pady=5)
 
-        # Register button
         register_button = tb.Button(self, text="Register", style="info.TButton", bootstyle="rounded", command=self.register)
         register_button.pack(pady=20)
 
@@ -115,6 +111,10 @@ class DoctorAppointmentApp(tb.Window):
     def login(self):
         username = self.username_entry.get()
         password = hash_password(self.password_entry.get())
+
+        if not username or not password:
+            messagebox.showerror("Input Error", "Please enter both username and password.")
+            return
 
         cursor.execute("SELECT * FROM users WHERE username=? AND password=?", (username, password))
         user = cursor.fetchone()
@@ -131,6 +131,13 @@ class DoctorAppointmentApp(tb.Window):
         password = hash_password(self.password_entry.get())
         role = self.role_var.get()
         speciality = self.speciality_entry.get() if role == 'doctor' else None
+
+        if not username or not password:
+            messagebox.showerror("Input Error", "Please enter both username and password.")
+            return
+        if role == 'doctor' and not speciality:
+            messagebox.showerror("Input Error", "Please enter a speciality for the doctor.")
+            return
 
         try:
             cursor.execute("INSERT INTO users (username, password, role) VALUES (?, ?, ?)", (username, password, role))
@@ -200,20 +207,31 @@ class DoctorAppointmentApp(tb.Window):
         date = self.date_entry.get()
         time = self.time_entry.get()
 
+        if not date or not time:
+            messagebox.showerror("Input Error", "Please enter both date and time.")
+            return
+
         try:
-            datetime.strptime(date, "%Y-%m-%d")  # Validate date format
+            datetime.strptime(date, "%Y-%m-%d")
         except ValueError:
             messagebox.showerror("Invalid Date", "Please enter the date in YYYY-MM-DD format.")
             return
 
         try:
-            datetime.strptime(time, "%I:%M %p")  # Validate time format
+            datetime.strptime(time, "%I:%M %p")
         except ValueError:
             messagebox.showerror("Invalid Time", "Please enter the time in HH:MM AM/PM format.")
             return
 
         cursor.execute("SELECT id FROM doctors WHERE name=?", (doctor_name,))
         doctor_id = cursor.fetchone()[0]
+
+        # Check for existing appointment
+        cursor.execute("SELECT * FROM appointments WHERE doctor_id=? AND date=? AND time=?", (doctor_id, date, time))
+        existing_appointment = cursor.fetchone()
+        if existing_appointment:
+            messagebox.showerror("Appointment Conflict", "You already have an appointment with this doctor at the selected time.")
+            return
 
         cursor.execute("INSERT INTO appointments (patient_id, doctor_id, date, time) VALUES (?, ?, ?, ?)",
                        (self.user[0], doctor_id, date, time))
