@@ -4,6 +4,7 @@ from tkinter import ttk, messagebox
 import ttkbootstrap as tb
 import hashlib
 from datetime import datetime
+import tkinter.simpledialog as simpledialog  # Import simpledialog here
 
 # Hash password
 def hash_password(password):
@@ -42,6 +43,20 @@ CREATE TABLE IF NOT EXISTS appointments (
     FOREIGN KEY (doctor_id) REFERENCES doctors(id)
 )
 ''')
+# Create notifications table to store cancellation notifications
+cursor.execute('''
+CREATE TABLE IF NOT EXISTS notifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    doctor_id INTEGER NOT NULL,
+    message TEXT NOT NULL,
+    date TEXT NOT NULL,
+    time TEXT NOT NULL,
+    FOREIGN KEY (doctor_id) REFERENCES doctors(id)
+)
+''')
+
+conn.commit()
+
 
 conn.commit()
 
@@ -54,6 +69,7 @@ class DoctorAppointmentApp(tb.Window):
         self.user = None
         self.configure(background="#007BFF")
         self.login_screen()
+
 
     def login_screen(self):
         self.clear_frame()
@@ -153,12 +169,14 @@ class DoctorAppointmentApp(tb.Window):
     def home_screen(self):
         self.clear_frame()
         notebook = ttk.Notebook(self)
-        
+    
         book_tab = ttk.Frame(notebook)
         view_tab = ttk.Frame(notebook)
-        
+        notification_tab = ttk.Frame(notebook)  # New tab for notifications
+    
         notebook.add(book_tab, text="Book Appointment")
         notebook.add(view_tab, text="View Appointments")
+        notebook.add(notification_tab, text="Notifications")  # Add the tab
         notebook.pack(expand=True, fill='both')
 
         if self.user[3] == 'patient':
@@ -166,6 +184,7 @@ class DoctorAppointmentApp(tb.Window):
             self.view_appointments_screen(parent=view_tab)
         elif self.user[3] == 'doctor':
             self.view_appointments_screen(parent=view_tab)
+            self.view_notifications(parent=notification_tab)  # Show notifications for the doctor
 
         logout_button = tb.Button(self, text="Logout", style="danger.TButton", bootstyle="rounded", command=self.logout)
         logout_button.pack(pady=20)
@@ -288,10 +307,84 @@ class DoctorAppointmentApp(tb.Window):
         appointment_id = self.appointments_tree.item(selected_item, 'values')[0]
         confirm = messagebox.askyesno("Cancel Confirmation", "Are you sure you want to cancel this appointment?")
         if confirm:
+        # Ask for the cancellation reason
+            reason = simpledialog.askstring("Cancellation Reason", "Please enter the reason for cancellation:")
+            if not reason:
+                messagebox.showerror("Input Error", "You must provide a reason for canceling the appointment.")
+                return
+
+        # Fetch appointment details
+            cursor.execute('''
+                SELECT a.date, a.time, d.name, d.id, u.username
+                FROM appointments a
+                JOIN doctors d ON a.doctor_id = d.id
+                JOIN users u ON a.patient_id = u.id
+                WHERE a.id = ?
+            ''', (appointment_id,))
+            appointment_details = cursor.fetchone()
+            if not appointment_details:
+                messagebox.showerror("Error", "Could not retrieve appointment details.")
+                return
+        
+            appointment_date, appointment_time, doctor_name, doctor_id, patient_name = appointment_details
+
+        # Delete the appointment
             cursor.execute("DELETE FROM appointments WHERE id=?", (appointment_id,))
             conn.commit()
             self.appointments_tree.delete(selected_item)
             messagebox.showinfo("Appointment Cancelled", "Your appointment has been cancelled.")
+
+        # Create notification message
+            notification_message = (
+                f"Patient {patient_name} has cancelled the appointment on {appointment_date} at {appointment_time}.\n"
+                f"Reason: {reason}"
+            )
+        
+        # Insert notification into the database for the doctor
+            cursor.execute(
+                "INSERT INTO notifications (doctor_id, message, date, time) VALUES (?, ?, ?, ?)",
+                (doctor_id, notification_message, appointment_date, appointment_time)
+            )
+            conn.commit()
+
+        # Inform the patient that the doctor will be notified
+            messagebox.showinfo("Notification Sent", f"A cancellation notification has been sent to Dr. {doctor_name}.")
+
+
+    def send_cancellation_notification(self, doctor_name, patient_name, appointment_date, appointment_time, reason):
+        # Simulating sending a notification
+        if self.user[3] == 'patient':
+            messagebox.showinfo(
+                "Notification Sent",
+                f"Notification sent to Dr. {doctor_name}:\n"
+                f"Patient {patient_name} has cancelled the appointment on {appointment_date} at {appointment_time}.\n"
+                f"Reason: {reason}"
+            )
+        elif self.user[3] == 'doctor':
+            messagebox.showinfo(
+                "Notification Sent",
+                f"Notification sent to Patient {patient_name}:\n"
+                f"Dr. {doctor_name} has cancelled the appointment on {appointment_date} at {appointment_time}.\n"
+                f"Reason: {reason}"
+            )
+    def view_notifications(self, parent):
+        label = ttk.Label(parent, text="Your Notifications", font=("Arial", 20), foreground="#1a73e8")
+        label.pack(pady=20)
+
+        cursor.execute("SELECT message, date, time FROM notifications WHERE doctor_id=?", (self.user[0],))
+        notifications = cursor.fetchall()
+
+        if not notifications:
+            label = ttk.Label(parent, text="No Notifications Found", font=("Arial", 12), foreground="#001F3F")
+            label.pack(pady=5)
+            return
+
+        for notification in notifications:
+            notification_message = f"On {notification[1]} at {notification[2]}: {notification[0]}"
+            notification_label = ttk.Label(parent, text=notification_message, font=("Arial", 12), foreground="#001F3F")
+            notification_label.pack(pady=5)
+
+
 
     def logout(self):
         self.user = None
