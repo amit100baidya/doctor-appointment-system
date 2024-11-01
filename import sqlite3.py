@@ -224,37 +224,74 @@ class DoctorAppointmentApp(tb.Window):
             return
 
         cursor.execute("SELECT id FROM doctors WHERE name=?", (doctor_name,))
-        doctor_id = cursor.fetchone()[0]
-
-        # Check for existing appointment
-        cursor.execute("SELECT * FROM appointments WHERE doctor_id=? AND date=? AND time=?", (doctor_id, date, time))
-        existing_appointment = cursor.fetchone()
-        if existing_appointment:
-            messagebox.showerror("Appointment Conflict", "You already have an appointment with this doctor at the selected time.")
+        doctor = cursor.fetchone()
+        if not doctor:
+            messagebox.showerror("Doctor Not Found", "The selected doctor could not be found.")
             return
 
-        cursor.execute("INSERT INTO appointments (patient_id, doctor_id, date, time) VALUES (?, ?, ?, ?)",
-                       (self.user[0], doctor_id, date, time))
-        conn.commit()
+        patient_id = self.user[0]
+        doctor_id = doctor[0]
 
-        messagebox.showinfo("Appointment Confirmed", f"Appointment with {doctor_name} on {date} at {time} confirmed.")
-        self.home_screen()
+        # Insert the appointment into the database
+        cursor.execute("INSERT INTO appointments (patient_id, doctor_id, date, time) VALUES (?, ?, ?, ?)", (patient_id, doctor_id, date, time))
+        conn.commit()
+        messagebox.showinfo("Appointment Confirmed", f"Your appointment with {doctor_name} on {date} at {time} is confirmed.")
+        self.date_entry.delete(0, tk.END)
+        self.time_entry.delete(0, tk.END)
 
     def view_appointments_screen(self, parent):
         label = ttk.Label(parent, text="Your Appointments", font=("Arial", 20), foreground="#1a73e8")
         label.pack(pady=20)
 
-        cursor.execute("SELECT a.date, a.time, d.name FROM appointments a JOIN doctors d ON a.doctor_id = d.id WHERE a.patient_id=?", (self.user[0],))
+        # Fetch user's appointments
+        if self.user[3] == 'patient':
+            cursor.execute('''
+                SELECT a.id, d.name, a.date, a.time
+                FROM appointments a
+                JOIN doctors d ON a.doctor_id = d.id
+                WHERE a.patient_id = ?
+            ''', (self.user[0],))
+        elif self.user[3] == 'doctor':
+            cursor.execute('''
+                SELECT a.id, u.username, a.date, a.time
+                FROM appointments a
+                JOIN users u ON a.patient_id = u.id
+                WHERE a.doctor_id = ?
+            ''', (self.user[0],))
+
         appointments = cursor.fetchall()
 
-        if not appointments:
-            label = ttk.Label(parent, text="No Appointments Found", font=("Arial", 12), foreground="#001F3F")
-            label.pack(pady=5)
-            return
+        # Create a Treeview widget to display the appointments
+        columns = ("ID", "Doctor/Patient", "Date", "Time")
+        self.appointments_tree = ttk.Treeview(parent, columns=columns, show="headings")
+        self.appointments_tree.heading("ID", text="ID")
+        self.appointments_tree.heading("Doctor/Patient", text="Doctor/Patient")
+        self.appointments_tree.heading("Date", text="Date")
+        self.appointments_tree.heading("Time", text="Time")
+
+        self.appointments_tree.pack(fill="both", expand=True)
 
         for appointment in appointments:
-            appointment_label = ttk.Label(parent, text=f"{appointment[0]} at {appointment[1]} with Dr. {appointment[2]}", font=("Arial", 12), foreground="#001F3F")
-            appointment_label.pack(pady=5)
+            self.appointments_tree.insert("", tk.END, values=appointment)
+
+        # Button to cancel appointment (for patients only)
+        if self.user[3] == 'patient':
+            cancel_button = tb.Button(parent, text="Cancel Appointment", style="danger.TButton", bootstyle="rounded", command=self.cancel_appointment)
+            cancel_button.pack(pady=20)
+
+    def cancel_appointment(self):
+        selected_item = self.appointments_tree.selection()
+        if not selected_item:
+            messagebox.showerror("Selection Error", "Please select an appointment to cancel.")
+            return
+
+        appointment_id = self.appointments_tree.item(selected_item, 'values')[0]
+        confirm = messagebox.askyesno("Cancel Confirmation", "Are you sure you want to cancel this appointment?")
+        if confirm:
+            cursor.execute("DELETE FROM appointments WHERE id=?", (appointment_id,))
+            conn.commit()
+            self.appointments_tree.delete(selected_item)
+            messagebox.showinfo("Appointment Cancelled", "Your appointment has been cancelled.")
 
     def logout(self):
         self.user = None
@@ -268,4 +305,4 @@ class DoctorAppointmentApp(tb.Window):
 if __name__ == "__main__":
     app = DoctorAppointmentApp()
     app.mainloop()
-    conn.close()
+
